@@ -13,4 +13,4 @@ This function takes item url and parse inner page of that one item.
 It would be esay if you use this two function separately. However, you still able to use these function togather and since both function return dictionary we can easly concat them by using  "car.update(self.parse_inner(passed_url))" which you will see in 
 extract_item() function. 
 
-I collected data into mongodb since there is some data that cannot be structured such as phone numbers. In some ads there were more than one phone number which is basicly problematic to store in structured database. 
+I collected data into mongodb since there is some data that cannot be structured such as phone numbers. In some ads there were more than one phone number which is basicly problematic to store in structured database. You can still wor around and by changing some parts you can store it in sql structured database or even in excel file. 
