@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 
 from mongo_connection import MongoConnection
 from datetime import datetime
+from user_agents import user_agents
+import random
 
 
 class Turbo:
@@ -17,13 +19,24 @@ class Turbo:
 
     @staticmethod
     def get_beautiful_soup(link):
-        response = requests.get(link)
+        headers = {'user-agent': random.choice(user_agents)}
+        response = requests.get(link, headers=headers)
         if response.status_code != 200:
             raise Exception(f'Request error. {response.status_code} {response.text}')
         response.encoding = "utf8"
         html = response.text
         bs = BeautifulSoup(html, 'lxml')
         return bs
+
+    def get_partial_parsed_items(self):
+        res = self.collection.find({'status': 0}).limit(10)
+        return res
+
+    def update_collection(self, data):
+        item_id = data['_id']
+        query = {"_id": item_id}
+        new_values = {"$set": data}
+        self.collection.update_one(query, new_values)
 
     def insert_to_collection(self, data):
         """
@@ -174,12 +187,7 @@ class Turbo:
                 car['city'] = place
                 car['posted_date'] = date.strip()  # this solves that problem
                 car['parse_date'] = datetime.now().strftime("%d.%m.%Y %H:%M")
-                # self.insert_to_collection(car)
-                passed_url = 'https://turbo.az/autos/3904907-toyota-prado'
-                car.update(self.parse_inner(passed_url))  # to update dict with inner data
-                car['view'] = car.pop('ad_hits')  # rename dict key
-                car['_id'] = car.pop('ad_id')  # rename dict key
-                car['update_date'] = car.pop('ad_updated_at')  # rename dict key
+                self.insert_to_collection(car)
 
             except Exception as e:
                 link = car.get('item_url', 'N/A')
@@ -201,14 +209,39 @@ class Turbo:
             items = items_container.find_all('div', class_='products-i')
             return items
 
-    def main(self):
-        url = 'https://turbo.az/autos?page=300'  # starting point
+    def parse_outer(self):
+        url = 'https://turbo.az/autos?page=1'  # starting point
         while url:  # util there is next page url this will work
             print(url)  # printing out current pagination page
             bs, url = self.bs_and_next_url(url)  #
             items = self.parse_turbo_az(bs)
             self.extract_item(items)
 
+    def parse_inner_main(self):
+        items = self.get_partial_parsed_items()
+        for item in items:
+            url = item['item_url']
+            res = self.parse_inner(url)
+            res['view'] = res.pop('ad_hits')  # rename dict key
+            res['_id'] = int(res.pop('ad_id'))  # rename dict key
+            res['update_date'] = res.pop('ad_updated_at')  # rename dict key
+            item.update(res)
+            self.update_collection(item)
+
+    def main(self):
+        """
+        You can call two functiona.
+        First one is parse_outer() function that walks on  full site and collects some data.
+        You can see what they are by looking at extract_items() since it is called by parse_outer().
+
+        Second one is parse_inner_main() function that parse items that you are already collected and stored somewhere.
+        In my case, I stored data in mongodb for flexibility.
+
+        It is better for your understanding not to use these function at the same time.
+        """
+        # self.parse_outer()
+        self.parse_inner_main()
+
 
 if __name__ == '__main__':
-    Turbo().main()
+    Turbo().parse_inner_main()
