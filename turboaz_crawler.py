@@ -29,7 +29,7 @@ class Turbo:
         return bs
 
     def get_partial_parsed_items(self):
-        res = self.collection.find({'status': 0}).limit(10)
+        res = self.collection.find({'status': 0})
         return res
 
     def update_collection(self, data):
